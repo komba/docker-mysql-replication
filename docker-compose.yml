@@ -1,0 +1,43 @@
+version: "3.7"
+services:
+  db:
+    image: library/mysql:5.7
+    ports:
+      - "5306:3306"
+    networks:
+      - dbnet
+    volumes:
+      # https://media.giphy.com/media/tJMVcTfzDdL1pOGxlk/giphy.gif
+      - "./images/db/import.sql:/docker-entrypoint-initdb.d/import.sql"
+      - "./images/db/scripts/rebuild.sh:/docker-entrypoint-initdb.d/rebuild.sh"
+      - "./images/db/scripts/replication_master.sh:/docker-entrypoint-initdb.d/replication_master.sh"
+      - "./images/db/cnf/master.cnf:/etc/mysql/conf.d/master-mysqld.cnf"
+      - "./images/db:/tmpdb"
+    environment:
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_REPLICA_USER: replica_user
+      MYSQL_REPLICA_PASSWORD: replica_password
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: docker-replicated-db
+      MYSQL_ENV: master
+  replica:
+    image: library/mysql:5.7
+    depends_on:
+      - db
+    networks:
+      - dbnet
+    volumes:
+      - "./images/db/import.sql:/docker-entrypoint-initdb.d/import.sql"
+      - "./images/db/scripts/rebuild.sh:/docker-entrypoint-initdb.d/rebuild.sh"
+      - "./images/db/scripts/replication_slave.sh:/docker-entrypoint-initdb.d/replication_slave.sh"
+      - "./images/db/cnf/slave.cnf:/etc/mysql/conf.d/slave-mysqld.cnf"
+      - "./images/db:/tmpdb"
+    environment:
+      MYSQL_USER: replica_user
+      MYSQL_PASSWORD: replica_password
+      MYSQL_ROOT_PASSWORD: replica_password
+      MYSQL_DATABASE: docker-replicated-db
+      MYSQL_ENV: slave
+networks:
+  dbnet:
